@@ -9,6 +9,7 @@ import { CloudSourceService } from "./services/cloud-source-service.js";
 import { ReadingService } from "./services/reading-service.js";
 import { handleSourceRoute } from "./source-routes.js";
 import { createStandaloneReaderResponse } from "./standalone-reader.js";
+import { D1SourceObjectStorage } from "./storage/d1-source-object-storage.js";
 import { R2SourceObjectStorage } from "./storage/r2-source-object-storage.js";
 import { getWorkerRoute } from "./worker-router.js";
 
@@ -38,7 +39,7 @@ export default {
       const repository = new D1ReadingRepository(env.DB);
       const sourceService = env.SOURCES_BUCKET
         ? new CloudSourceService(repository, new R2SourceObjectStorage(env.SOURCES_BUCKET))
-        : undefined;
+        : new CloudSourceService(repository, new D1SourceObjectStorage(env.DB));
       if (route === "source") {
         const readingService = new ReadingService(repository);
         if (!sourceService && !url.pathname.endsWith("/bootstrap")) {
@@ -85,8 +86,8 @@ export default {
       console.error(
         JSON.stringify({
           message: "MCP request failed",
-          error: error instanceof Error ? error.message : String(error),
-          path: url.pathname
+          errorType: error instanceof Error ? error.name : "UnknownError",
+          route
         })
       );
       return Response.json(

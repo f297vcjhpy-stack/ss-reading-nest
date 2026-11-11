@@ -1,4 +1,5 @@
 export interface SourceObjectStorage {
+  readonly provider?: "r2" | "d1";
   putObject(input: {
     key: string;
     bytes: Uint8Array | ArrayBuffer | Blob;

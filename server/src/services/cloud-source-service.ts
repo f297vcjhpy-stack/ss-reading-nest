@@ -59,7 +59,7 @@ export class CloudSourceService {
       paragraphCount: splitNovelText(normalizedText).length,
       cloudSync: {
         enabled: true,
-        provider: "r2",
+        provider: this.storage.provider ?? "r2",
         objectKey,
         manifestObjectKey,
         uploadedAt: this.deps.now().toISOString(),
