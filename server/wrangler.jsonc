@@ -8,11 +8,6 @@
   ],
   "workers_dev": true,
   "preview_urls": false,
-  "secrets": {
-    "required": [
-      "MCP_PATH_TOKEN"
-    ]
-  },
   "d1_databases": [
     {
       "binding": "DB",
