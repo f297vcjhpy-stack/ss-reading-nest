@@ -1,3 +1,4 @@
+import { EscapeRoom } from "./EscapeRoom.js";
 import { Gomoku } from "./Gomoku.js";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
@@ -15,7 +16,7 @@ document.documentElement.dataset.hostEmbedding =
 if (rootElement) {
   createRoot(rootElement).render(
     <StrictMode>
-      {("__AN_GOMOKU__" in window) ? <Gomoku /> : <Boot />}
+      {("__AN_ESCAPE__" in window) ? <EscapeRoom /> : ("__AN_GOMOKU__" in window) ? <Gomoku /> : <Boot />}
     </StrictMode>
   );
   queueMicrotask(initializeReadingHostBridge);

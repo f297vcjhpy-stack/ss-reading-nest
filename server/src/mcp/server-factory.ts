@@ -1,3 +1,4 @@
+import { registerEscape } from "../games/register-escape.js";
 import { registerGomoku } from "../games/register-gomoku.js";
 import { registerTimeTools } from "./time-tools.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -23,6 +24,7 @@ export function createMcpServerFromRepository(
   });
   registerTimeTools(server);
   if (options.gameDatabase) registerGomoku(server, options.gameDatabase, widgetHtml, options.workerOrigin);
+  if (options.gameDatabase) registerEscape(server, options.gameDatabase, widgetHtml, options.workerOrigin);
   const service = new ReadingService(repository);
   registerReadingResource(server, widgetHtml, options.workerOrigin, async () => ({
     ...(options.sourceEndpointBase ? { sourceEndpointBase: options.sourceEndpointBase } : {})
