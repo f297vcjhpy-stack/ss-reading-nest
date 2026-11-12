@@ -19,6 +19,7 @@ it("exposes assistant-only creation, verifies source and persists author without
  const cloud=new CloudSourceService(repo,new MemorySourceObjectStorage());
  await cloud.uploadNovelSource({sessionId:session.id,sourceText:"第一句话。第二句话。",sourceKind:"pasted_text"});
  const bundle=await service.getSessionBundle(session.id);
+ await service.markAssistantReadPage(session.id,1,bundle.session.sourceManifest!.contentHash,bundle.session.sourceManifest!.segmentationVersion);
  await service.saveQuote({sessionId:session.id,content:"第一句话。",note:"圆圆原来的感想",position:bundle.session.userCurrentPosition});
  const server=new McpServer({name:"test",version:"1"});
  registerAssistantAnnotations(server,service,cloud,()=>service.getBookshelfSnapshot(false));
@@ -44,5 +45,33 @@ it("exposes assistant-only creation, verifies source and persists author without
   const wrong=await client.callTool({name:"save_assistant_annotation",arguments:{...args,positionIndex:2,operationId:"wrong-page"}});
   expect(wrong.isError).toBe(true);
   expect((await repo.read()).quotes).toHaveLength(2);
+ }finally{await client.close();await server.close();}
+});
+
+it("reads index 3, saves and reads it back while user progress remains index 2",async()=>{
+ const {registerReadingTools}=await import("./register-tools.js");
+ const dir=await mkdtemp(join(tmpdir(),"an-history-"));
+ const repo=new JsonReadingRepository(join(dir,"state.json"));const service=new ReadingService(repo);
+ const session=await service.startSession("历史页测试","novel");
+ const cloud=new CloudSourceService(repo,new MemorySourceObjectStorage());
+ await cloud.uploadNovelSource({sessionId:session.id,sourceText:["甲".repeat(1000),"乙".repeat(1000),"第三页原句。"+"丙".repeat(1000),"丁".repeat(1000)].join("\n\n"),sourceKind:"pasted_text"});
+ await repo.mutate(db=>{db.sessions[0].userCurrentPosition={kind:"paragraph",index:2,total:4,label:"第 2 页"};});
+ const server=new McpServer({name:"history-test",version:"1"});registerReadingTools(server,service,cloud);
+ const client=new Client({name:"test-client",version:"1"});const [a,b]=InMemoryTransport.createLinkedPair();await server.connect(b);await client.connect(a);
+ const args={sessionId:session.id,positionIndex:3,content:"第三页原句。",note:"历史页批注",operationId:"history-3"};
+ try{
+  expect((await client.callTool({name:"save_assistant_annotation",arguments:args})).isError).toBe(true);
+  const read=await client.callTool({name:"read_shared_page_context",arguments:{sessionId:session.id,positionIndex:3}});
+  expect((read.structuredContent as any).sharedPage.currentText).toContain("第三页原句。");
+  // New service/request instance must retain evidence of the prior read.
+  const saved=await client.callTool({name:"save_assistant_annotation",arguments:args});expect(saved.isError).not.toBe(true);
+  await client.callTool({name:"save_assistant_annotation",arguments:args});
+  expect((await repo.read()).quotes).toHaveLength(1);
+  expect((await client.callTool({name:"save_assistant_annotation",arguments:{...args,note:"不同批注"}})).isError).toBe(true);
+  const reread=await client.callTool({name:"read_shared_page_context",arguments:{sessionId:session.id,positionIndex:3}});
+  expect((reread.structuredContent as any).sharedPage.savedThoughts).toContainEqual({quote:"第三页原句。",author:"安安",thought:"历史页批注"});
+  expect((await repo.read()).sessions[0].userCurrentPosition).toEqual({kind:"paragraph",index:2,total:4,label:"第 2 页"});
+  await cloud.uploadNovelSource({sessionId:session.id,sourceText:"第三页原句。新版正文",sourceKind:"pasted_text"});
+  expect((await client.callTool({name:"save_assistant_annotation",arguments:{...args,positionIndex:1,operationId:"new-version"}})).isError).toBe(true);
  }finally{await client.close();await server.close();}
 });

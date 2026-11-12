@@ -446,6 +446,7 @@ export function registerReadingTools(
             sourceText,
             sourceManifest.segmentationVersion
           )[index - 1];
+          if (currentText) await service.markAssistantReadPage(bundle.session.id, index, sourceManifest.contentHash, sourceManifest.segmentationVersion);
         } catch {
           currentText = undefined;
         }

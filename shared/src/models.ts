@@ -107,6 +107,7 @@ export interface ReadingSession {
   liveReadingEnabled: boolean;
   sessionPreferences: SessionPreferences;
   sourceManifest: SourceManifest | null;
+  assistantReadPages?: { sourceHash: string; segmentationVersion: number; pages: number[] };
   lastAssistantConfirmation?: {
     operationId: string;
     batchId: string;

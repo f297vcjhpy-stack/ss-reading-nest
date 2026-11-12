@@ -225,26 +225,50 @@ export class ReadingService {
     });
   }
 
+  async markAssistantReadPage(sessionId: string, index: number, sourceHash: string, segmentationVersion: number) {
+    return this.repository.mutate(database => {
+      const session = this.requireSession(database.sessions, sessionId);
+      if (session.sourceManifest?.contentHash !== sourceHash || session.sourceManifest.segmentationVersion !== segmentationVersion) {
+        throw new AppError("INVALID_OPERATION", "正文版本已变化，请重新读取。");
+      }
+      const prior = session.assistantReadPages;
+      const pages = prior?.sourceHash === sourceHash && prior.segmentationVersion === segmentationVersion ? prior.pages : [];
+      session.assistantReadPages = {sourceHash, segmentationVersion, pages: [...new Set([...pages,index])]};
+    });
+  }
+
   async saveQuote(input: {
     sessionId: string;
     content: string;
     position: ReadingPosition;
     note?: string;
     author?: "user" | "assistant";
+    verifiedSourceHash?: string;
+    verifiedSegmentationVersion?: number;
     clearThought?: string;
     operationId?: string;
   }): Promise<Quote> {
     return this.repository.mutate((database) => {
       const session = this.requireSession(database.sessions, input.sessionId);
-      if (input.author === "assistant" &&
-          (session.userCurrentPosition.kind !== input.position.kind ||
-           session.userCurrentPosition.index !== input.position.index)) {
-        throw new AppError("INVALID_OPERATION", "页码已经变化，请重新读取当前页后再批注。");
+      if (input.author === "assistant") {
+        const proof = session.assistantReadPages;
+        if (!proof || proof.sourceHash !== input.verifiedSourceHash ||
+            proof.segmentationVersion !== input.verifiedSegmentationVersion ||
+            session.sourceManifest?.contentHash !== proof.sourceHash ||
+            session.sourceManifest.segmentationVersion !== proof.segmentationVersion ||
+            !proof.pages.includes(input.position.index)) {
+          throw new AppError("INVALID_OPERATION", "请先读取这页原文；正文版本变化后需重新读取。");
+        }
       }
       const existing = input.operationId
         ? database.quotes.find((item) => item.operationId === input.operationId)
         : undefined;
-      if (existing) return existing;
+      if (existing) {
+        if (input.author === "assistant" && (existing.author !== "assistant" || existing.sessionId !== input.sessionId || existing.content !== input.content || existing.note !== input.note || existing.position.index !== input.position.index)) {
+          throw new AppError("INVALID_OPERATION", "相同 operationId 已用于另一条批注，请为新批注使用新编号。");
+        }
+        return existing;
+      }
       const quote: Quote = {
         id: this.deps.id(),
         sessionId: input.sessionId,

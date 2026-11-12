@@ -38,6 +38,7 @@ function copySession(session: ReadingSession): ReadingSession {
     assistantSyncedPosition: session.assistantSyncedPosition
       ? structuredClone(session.assistantSyncedPosition)
       : null,
+    ...(session.assistantReadPages ? {assistantReadPages: structuredClone(session.assistantReadPages)} : {}),
     liveReadingEnabled: session.liveReadingEnabled,
     sessionPreferences: structuredClone(session.sessionPreferences),
     sourceManifest: copySourceManifest(session.sourceManifest),
