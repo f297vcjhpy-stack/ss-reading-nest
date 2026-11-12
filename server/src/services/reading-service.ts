@@ -285,6 +285,27 @@ export class ReadingService {
     });
   }
 
+  async addAnnotationReply(input: {sessionId:string;quoteId:string;author:"user"|"assistant";content:string;operationId:string;replyToId?:string}) {
+    return this.repository.mutate(database => {
+      this.requireSession(database.sessions,input.sessionId);
+      const quote = database.quotes.find(q=>q.id===input.quoteId && q.sessionId===input.sessionId);
+      if(!quote) throw new AppError("INVALID_OPERATION","没有找到所属批注。");
+      const content=input.content.trim();
+      if(!content || content.length>4000) throw new AppError("INVALID_OPERATION","回复需为1到4000字。");
+      const operationId=`reply:${input.author}:${input.operationId}`;
+      const all=database.quotes.flatMap(q=>q.replies??[]);
+      const existing=all.find(r=>r.operationId===operationId);
+      if(existing) {
+        if(existing.quoteId!==quote.id || existing.content!==content || existing.replyToId!==input.replyToId) throw new AppError("INVALID_OPERATION","回复编号已用于不同内容。");
+        return {quote,reply:existing};
+      }
+      if(input.replyToId && !(quote.replies??[]).some(r=>r.id===input.replyToId)) throw new AppError("INVALID_OPERATION","被回复的记录不属于这条批注。");
+      const reply={id:this.deps.id(),quoteId:quote.id,author:input.author,content,createdAt:this.deps.now().toISOString(),operationId,...(input.replyToId?{replyToId:input.replyToId}:{})};
+      quote.replies=[...(quote.replies??[]),reply];
+      return {quote,reply};
+    });
+  }
+
   async updateQuoteNote(input: {
     sessionId: string;
     quoteId: string;

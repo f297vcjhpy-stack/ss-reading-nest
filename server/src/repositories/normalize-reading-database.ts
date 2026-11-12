@@ -80,6 +80,7 @@ function copyQuote(quote: Quote): Quote {
     sessionId: quote.sessionId,
     content: quote.content,
     position: structuredClone(quote.position),
+    ...(quote.replies ? {replies: structuredClone(quote.replies)} : {}),
     ...(quote.note !== undefined ? { note: quote.note } : {}),
     ...(quote.author === "assistant" ? { author: "assistant" as const } : {}),
     ...(quote.clearThought !== undefined ? { clearThought: quote.clearThought } : {}),

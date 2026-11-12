@@ -183,6 +183,25 @@ describe("NovelReader", () => {
     expect(document.querySelector("mark[data-quote-content]")).toHaveClass("quote-located");
   });
 
+  it("sends a user reply and restores the discussion-list scroll after closing", async () => {
+    const props=makeProps();
+    const quote={id:"thread",sessionId:"novel-session",content:"第二句话。",note:"原批注",author:"assistant" as const,position:{kind:"paragraph" as const,index:1,label:"第 1 页"},createdAt:"2026-06-22T00:00:00.000Z"};
+    props.savedQuotes=[quote];
+    const onReply=vi.fn(async()=>({...quote,replies:[{id:"r1",quoteId:"thread",author:"user" as const,content:"圆圆回复",operationId:"r1",createdAt:"2026-06-22T00:01:00.000Z"}]}));
+    render(<NovelReader {...props} onReply={onReply} />);
+    fireEvent.click(screen.getByRole("button",{name:/打开本页想法/}));
+    const list=document.querySelector(".thoughts-card-scroll") as HTMLElement;list.scrollTop=120;fireEvent.scroll(list);
+    fireEvent.click(screen.getByRole("button",{name:"定位原文"}));
+    await screen.findByRole("dialog",{name:"划线清思"});
+    fireEvent.change(screen.getByLabelText("回复这条批注"),{target:{value:"圆圆回复"}});
+    fireEvent.click(screen.getByRole("button",{name:"发送回复"}));
+    await waitFor(()=>expect(onReply).toHaveBeenCalledWith("thread","圆圆回复"));
+    await waitFor(()=>expect(screen.getByText("圆圆回复")).toBeInTheDocument());
+    expect(screen.getByText("原批注")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button",{name:"返回批注列表"}));
+    expect((document.querySelector(".thoughts-card-scroll") as HTMLElement).scrollTop).toBe(120);
+  });
+
   it("labels assistant annotations separately in the page thoughts", () => {
     const props = makeProps();
     props.savedQuotes = [{id:"assistant-note",sessionId:"novel-session",content:"第二句话。",note:"安安自己的感想",author:"assistant",position:{kind:"paragraph",index:1,label:"第 1 段"},createdAt:"2026-06-22T00:00:00.000Z"}];
@@ -192,7 +211,7 @@ describe("NovelReader", () => {
     expect(screen.getByText("安安自己的感想")).toBeInTheDocument();
   });
 
-  it("shows saved highlights and lets the thought be edited", () => {
+  it("shows saved highlights and lets the thought be edited", async () => {
     const props = makeProps();
     props.savedQuotes = [
       {
@@ -215,7 +234,7 @@ describe("NovelReader", () => {
     expect(screen.getByRole("dialog", { name: "本页想法" })).toBeInTheDocument();
     expect(screen.getByText("已经想清楚的一点")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "打开这句" }));
-    expect(screen.getByRole("dialog", { name: "划线清思" })).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "划线清思" })).toBeInTheDocument();
     expect(screen.queryByPlaceholderText(/粘贴安安说得好的地方/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "编辑清思" }));
     expect(screen.getByPlaceholderText(/粘贴安安说得好的地方/)).toHaveValue("已经想清楚的一点");
@@ -279,7 +298,7 @@ describe("NovelReader", () => {
     render(<NovelReader {...props} />);
 
     fireEvent.click(screen.getByText("第二句话。", { selector: "mark" }));
-    expect(screen.getByRole("dialog", { name: "划线清思" })).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "划线清思" })).toBeInTheDocument();
     expect(screen.getByText("最初的意绪")).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText(/粘贴安安说得好的地方/), {
       target: { value: "聊完之后，我发现这里真正说的是持续反馈。" }
@@ -339,7 +358,7 @@ describe("NovelReader", () => {
       expect(summary).toHaveAttribute("aria-label", "打开本页想法：1 条，清思 1 条");
     });
     fireEvent.click(screen.getByRole("button", { name: "关闭划线清思" }));
-    fireEvent.click(screen.getByRole("button", { name: /本页想法/ }));
+    expect(screen.getByRole("dialog", {name:"本页想法"})).toBeInTheDocument();
     expect(screen.getByText("聊完之后，我知道这里是在说反馈。")).toBeInTheDocument();
   });
 

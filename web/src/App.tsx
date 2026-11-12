@@ -116,6 +116,7 @@ type OpenOutput = {
   readingRecords?: ReadingRecord[];
   sourceEndpointBase?: string;
   quote?: Quote;
+  reply?: unknown;
 };
 
 type ActiveReadingRecordDraft = {
@@ -224,11 +225,10 @@ export function App() {
       subscribeToolOutput<OpenOutput>((output) => {
         setOpenOutput((current) => mergeOpenOutput(current, output, "partial"));
         const quote = output.quote;
-        if (quote?.author === "assistant") {
+        if (quote && (quote.author === "assistant" || output.reply)) {
           setSessionBundle((current) => {
-            if (!current || current.session.id !== quote.sessionId ||
-                current.quotes.some((item) => item.id === quote.id)) return current;
-            return {...current, quotes:[...current.quotes, quote]};
+            if (!current || current.session.id !== quote.sessionId) return current;
+            return {...current, quotes:current.quotes.some(item=>item.id===quote.id)?current.quotes.map(item=>item.id===quote.id?quote:item):[...current.quotes,quote]};
           });
         }
       }),
@@ -2051,6 +2051,12 @@ export function App() {
           onAskSelection={askAboutNovelSelection}
           onSaveThought={saveQuoteThought}
           onSaveClearThought={saveQuoteClearThought}
+          onReply={async (quoteId,content)=>{
+            const result=await callTool("add_user_annotation_reply",{sessionId:sessionBundle.session.id,quoteId,content,operationId:createClientId()});
+            const quote=result.structuredContent?.quote as Quote | undefined;
+            if(!quote){setToast("回复未保存，请重试。");return undefined;}
+            replaceSessionQuote(sessionBundle.session.id,quote);setToast("回复已保存，安安可以读取了。");return quote;
+          }}
           onDeleteQuote={(quoteId) => deleteQuoteRecord(sessionBundle.session.id, quoteId)}
           onFinish={finishToday}
           onFullscreen={() => void openFullscreenReader()}

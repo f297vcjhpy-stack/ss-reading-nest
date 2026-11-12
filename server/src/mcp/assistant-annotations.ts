@@ -12,6 +12,19 @@ export function registerAssistantAnnotations(
   cloud: CloudSourceService | undefined,
   loadBookshelf: () => Promise<unknown>
 ) {
+  const replySchema={sessionId:z.string().min(1),quoteId:z.string().min(1),content:z.string().trim().min(1).max(4000),operationId:z.string().min(1).max(200),replyToId:z.string().min(1).optional()};
+  for(const author of ["user","assistant"] as const) {
+    registerAppTool(server,author==="user"?"add_user_annotation_reply":"reply_to_annotation",{
+      title:author==="user"?"圆圆回复批注":"安安回复批注",
+      description:author==="user"?"组件内保存圆圆的回复":"用户要求讨论批注时，先读取对应批注和回复，再新增安安的回复。quoteId 必须来自读取结果；不修改或冒充圆圆的回复。",
+      inputSchema:replySchema,annotations:{readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:false},
+      _meta:author==="user"?{ui:{visibility:["app"]},"openai/visibility":"private","openai/widgetAccessible":true}:{"openai/widgetAccessible":true}
+    },async input=>{try {const result=await service.addAnnotationReply({...input,author});return {...toolResult({saved:true,...result},"回复已保存。"),_meta:{privateBookshelf:await loadBookshelf()}};}catch(e){return {isError:true,content:[{type:"text" as const,text:e instanceof Error?e.message:"保存失败"}]};}});
+  }
+  server.registerTool("read_annotation_threads",{description:"用户要求检查或讨论全书批注时读取。返回批注ID、页码、原作者及关联回复；保留旧清思字段，不猜测旧内容的作者。",inputSchema:{sessionId:z.string().min(1)},annotations:{readOnlyHint:true}},async({sessionId})=>{
+    const bundle=await service.getSessionBundle(sessionId);
+    return toolResult({sessionId,threads:bundle.quotes.map(q=>({quoteId:q.id,position:q.position,quote:q.content,author:q.author==="assistant"?"安安":"圆圆",thought:q.note,clearThought:q.clearThought,replies:(q.replies??[]).map(r=>({...r,author:r.author==="assistant"?"安安":"圆圆"}))})),legacyAnnotations:bundle.session.sourceManifest?.readingState?.annotations??[]},"已读取全书批注和讨论。旧清思与旧批注单独保留，未自动改写。");
+  });
   registerAppTool(server, "save_assistant_annotation", {
     title: "保存安安的批注",
     description: "用户希望一起批注时，先调用 read_shared_page_context 读取目标页（可指定历史页码），再用本工具保存安安自己的批注。content 必须逐字引用已读取的目标页原文，note 写自己的感想。只新增署名安安的记录，不修改圆圆的批注；不批注未读页面。不自动在每页添加批注。",

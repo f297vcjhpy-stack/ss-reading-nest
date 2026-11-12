@@ -26,14 +26,26 @@ it("exposes assistant-only creation, verifies source and persists author without
  const client=new Client({name:"test-client",version:"1"});
  const [a,b]=InMemoryTransport.createLinkedPair();await server.connect(b);await client.connect(a);
  try{
-  const list=await client.listTools();expect(list.tools.map(t=>t.name)).toEqual(["save_assistant_annotation"]);
-  expect(list.tools[0]._meta?.["openai/visibility"]).not.toBe("private");
+  const list=await client.listTools();expect(list.tools.map(t=>t.name)).toContain("save_assistant_annotation");
+  expect(list.tools.find(t=>t.name==="reply_to_annotation")?._meta?.["openai/visibility"]).not.toBe("private");
   const args={sessionId:session.id,positionIndex:1,content:"第一句话。",note:"安安的感想",operationId:"first-note"};
   const saved=await client.callTool({name:"save_assistant_annotation",arguments:args});
   expect(saved.isError).not.toBe(true);
   expect(saved.structuredContent).toMatchObject({saved:true,quote:{author:"assistant",note:"安安的感想"}});
   expect(saved.structuredContent).not.toHaveProperty("bookshelfSessions");
   expect(saved._meta).toHaveProperty("privateBookshelf");
+  const quoteId=(saved.structuredContent as any).quote.id;
+  const replyArgs={sessionId:session.id,quoteId,content:"圆圆的回复",operationId:"reply-one"};
+  const reply=await client.callTool({name:"add_user_annotation_reply",arguments:replyArgs});
+  expect(reply.structuredContent).toMatchObject({reply:{author:"user",quoteId,content:"圆圆的回复"}});
+  await client.callTool({name:"add_user_annotation_reply",arguments:replyArgs});
+  const replyId=(reply.structuredContent as any).reply.id;
+  expect((await client.callTool({name:"reply_to_annotation",arguments:{...replyArgs,content:"安安回应",operationId:"reply-two",replyToId:replyId}})).isError).not.toBe(true);
+  const threads=await client.callTool({name:"read_annotation_threads",arguments:{sessionId:session.id}});
+  const thread=(threads.structuredContent as any).threads.find((t:any)=>t.quoteId===quoteId);
+  expect(thread.replies.map((r:any)=>r.author)).toEqual(["圆圆","安安"]);
+  expect((await new JsonReadingRepository(join(dir,"state.json")).read()).quotes.find(q=>q.id===quoteId)?.replies).toHaveLength(2);
+
   await client.callTool({name:"save_assistant_annotation",arguments:args});
   const readback=await new JsonReadingRepository(join(dir,"state.json")).read();
   expect(readback.quotes).toHaveLength(2);
@@ -69,7 +81,11 @@ it("reads index 3, saves and reads it back while user progress remains index 2",
   expect((await repo.read()).quotes).toHaveLength(1);
   expect((await client.callTool({name:"save_assistant_annotation",arguments:{...args,note:"不同批注"}})).isError).toBe(true);
   const reread=await client.callTool({name:"read_shared_page_context",arguments:{sessionId:session.id,positionIndex:3}});
-  expect((reread.structuredContent as any).sharedPage.savedThoughts).toContainEqual({quote:"第三页原句。",author:"安安",thought:"历史页批注"});
+  expect((reread.structuredContent as any).sharedPage.savedThoughts).toContainEqual(expect.objectContaining({quote:"第三页原句。",author:"安安",thought:"历史页批注"}));
+  const savedQuoteId=(saved.structuredContent as any).quote.id;
+  await client.callTool({name:"add_user_annotation_reply",arguments:{sessionId:session.id,quoteId:savedQuoteId,content:"针对历史页的回复",operationId:"history-reply"}});
+  const withReplies=await client.callTool({name:"read_shared_page_context",arguments:{sessionId:session.id,positionIndex:3}});
+  expect((withReplies.structuredContent as any).sharedPage.savedThoughts[0]).toMatchObject({quoteId:savedQuoteId,replies:[{quoteId:savedQuoteId,author:"圆圆",content:"针对历史页的回复"}]});
   expect((await repo.read()).sessions[0].userCurrentPosition).toEqual({kind:"paragraph",index:2,total:4,label:"第 2 页"});
   await cloud.uploadNovelSource({sessionId:session.id,sourceText:"第三页原句。新版正文",sourceKind:"pasted_text"});
   expect((await client.callTool({name:"save_assistant_annotation",arguments:{...args,positionIndex:1,operationId:"new-version"}})).isError).toBe(true);

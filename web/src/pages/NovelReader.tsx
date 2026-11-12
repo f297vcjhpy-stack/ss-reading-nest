@@ -32,6 +32,7 @@ export function NovelReader(props: {
     quoteId: string,
     clearThought: string
   ) => Promise<Quote | undefined> | Quote | undefined;
+  onReply?: (quoteId:string, content:string) => Promise<Quote | undefined>;
   onDeleteQuote?: (quoteId: string) => Promise<boolean> | boolean;
   onFinish: () => void;
   onBack: () => void;
@@ -90,27 +91,42 @@ export function NovelReader(props: {
   const swipe = useHorizontalPaging(previous, next);
   const scrollRef = useRef<HTMLElement>(null);
   const [showAllThoughts, setShowAllThoughts] = useState(false);
+  const [locateSequence,setLocateSequence]=useState(0);
   const [locatingQuote, setLocatingQuote] = useState<string | undefined>();
+  const [replyDraft,setReplyDraft]=useState("");
+  const [replyBusy,setReplyBusy]=useState(false);
+  const thoughtsScrollRef=useRef<HTMLDivElement>(null);
+  const thoughtsScrollTop=useRef(0);
+  useEffect(()=>{if(thoughtsCardOpen && thoughtsScrollRef.current) thoughtsScrollRef.current.scrollTop=thoughtsScrollTop.current;},[thoughtsCardOpen,showAllThoughts]);
   const targetQuoteId = locatingQuote ?? props.focusQuoteId;
   useEffect(() => {
     if (!targetQuoteId) return;
     const quote = props.savedQuotes.find(item => item.id === targetQuoteId);
     if (!quote || quote.position.index !== index + 1) return;
-    const mark = Array.from(scrollRef.current?.querySelectorAll<HTMLElement>("mark[data-quote-content]") ?? [])
+    let mark = Array.from(scrollRef.current?.querySelectorAll<HTMLElement>("mark[data-quote-content]") ?? [])
       .find(el => el.dataset.quoteContent === normalizeQuote(quote.content));
-    if (!mark) return;
+    if (!mark) {
+      const prefix=quote.content.split("\n").find(line=>line.trim())?.trim() ?? "";
+      mark=Array.from(scrollRef.current?.querySelectorAll<HTMLElement>(".novel-paper p")??[]).find(el=>prefix && el.textContent?.includes(prefix));
+      if(mark)mark.tabIndex=-1;
+    }
+    if (!mark) {openQuoteDetail(quote);return;}
+    const anchor=mark;
     const locateTimer = window.setTimeout(() => {
-      mark.scrollIntoView?.({block:"center", behavior:"smooth"});
-      mark.focus({preventScroll:true});
-      mark.classList.add("quote-located");
+      anchor.scrollIntoView?.({block:"center", behavior:"smooth"});
+      anchor.focus({preventScroll:true});
+      anchor.classList.add("quote-located");
+      openQuoteDetail(quote);
     }, 0);
-    const timer = window.setTimeout(() => mark.classList.remove("quote-located"), 2500);
+    const timer = window.setTimeout(() => anchor.classList.remove("quote-located"), 2500);
     return () => {window.clearTimeout(timer);window.clearTimeout(locateTimer);};
-  }, [targetQuoteId, index, current, props.savedQuotes]);
+  }, [targetQuoteId, index, current, props.savedQuotes, locateSequence]);
+  useEffect(()=>{setActiveQuote(current=>current ? props.savedQuotes.find(q=>q.id===current.id)??current : null);},[props.savedQuotes]);
   function locateQuote(quote: Quote) {
     setThoughtsCardOpen(false);
     setActiveQuote(null);
     setLocatingQuote(quote.id);
+    setLocateSequence(value=>value+1);
     props.onPosition(quote.position.index);
   }
 
@@ -460,12 +476,12 @@ export function NovelReader(props: {
                     <X className="dialog-close-icon" aria-hidden="true" strokeWidth={1.8} />
                   </button>
                 </header>
-                <div className="thoughts-card-scroll">
+                <div className="thoughts-card-scroll" ref={thoughtsScrollRef} onScroll={event=>{thoughtsScrollTop.current=event.currentTarget.scrollTop;}}>
                   <button type="button" onClick={() => setShowAllThoughts(value => !value)}>
                     {showAllThoughts ? "只看本页" : "查看全书批注"}
                   </button>
                   {(showAllThoughts ? props.savedQuotes.filter(quote => quote.note) : currentThoughts).map((quote, thoughtIndex) => (
-                    <article key={quote.id} className="thoughts-card-entry">
+                    <article key={quote.id} className="thoughts-card-entry" onClick={event => {if (!(event.target as HTMLElement).closest("button")) locateQuote(quote);}}>
                       <p className="thoughts-card-kicker">
                         {String(thoughtIndex + 1).padStart(2, "0")} · 第 {quote.position.index} 页 · 原文
                       </p>
@@ -481,7 +497,7 @@ export function NovelReader(props: {
                       <button
                         type="button"
                         className="thoughts-card-open"
-                        onClick={() => openQuoteDetail(quote)}
+                        onClick={() => locateQuote(quote)}
                       >
                         打开这句
                       </button>
@@ -509,7 +525,7 @@ export function NovelReader(props: {
                   <button
                     type="button"
                     aria-label="关闭划线清思"
-                    onClick={() => setActiveQuote(null)}
+                    onClick={() => {setActiveQuote(null);setThoughtsCardOpen(true);}}
                   >
                     <X className="dialog-close-icon" aria-hidden="true" strokeWidth={1.8} />
                   </button>
@@ -523,6 +539,12 @@ export function NovelReader(props: {
                     <button type="button" onClick={editActiveThought}>修改意绪</button>
                   </div>
                   <p>{activeQuote.note || "这里还没有写下第一反应。"}</p>
+                </section>
+                <section className="quote-detail-section">
+                  <strong>书页讨论</strong>
+                  {(activeQuote.replies??[]).map(reply=><article key={reply.id}><strong>{reply.author==="assistant"?"安安":"圆圆"}</strong><p>{reply.content}</p></article>)}
+                  {props.onReply ? <><textarea aria-label="回复这条批注" value={replyDraft} maxLength={4000} onChange={event=>setReplyDraft(event.target.value)} placeholder="和安安聊聊这句…"/><button type="button" disabled={replyBusy || !replyDraft.trim()} onClick={async()=>{setReplyBusy(true);try{const saved=await props.onReply?.(activeQuote.id,replyDraft.trim());if(saved){setActiveQuote(saved);setReplyDraft("");}}finally{setReplyBusy(false);}}}>{replyBusy?"正在保存…":"发送回复"}</button></> : null}
+                  <button type="button" onClick={()=>{setActiveQuote(null);setThoughtsCardOpen(true);}}>返回批注列表</button>
                 </section>
                 <section className="quote-detail-section quote-clear-thought">
                   <div className="quote-detail-section-heading">

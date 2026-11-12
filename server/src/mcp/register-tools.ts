@@ -40,6 +40,7 @@ import { registerAssistantAnnotations } from "./assistant-annotations.js";
 // previous connection can still fetch its template after a later app release.
 export const READING_NEST_URI = READING_NEST_RESOURCE_URI;
 export const READING_NEST_LEGACY_URIS = [
+  "ui://ss-reading-nest/app-v85-annotation-navigation.html",
   "ui://ss-reading-nest/app-v84-assistant-annotations.html",
   "ui://ss-reading-nest/app-v83-an-personalized.html",
   "ui://ss-reading-nest/app-v78-context-fallback-remount.html",
@@ -429,6 +430,8 @@ export function registerReadingTools(
             Boolean(quote.note?.trim() || quote.clearThought?.trim())
         )
         .map((quote) => ({
+          quoteId: quote.id,
+          replies: (quote.replies??[]).map(reply=>({...reply,author:reply.author === "assistant" ? "安安" : "圆圆"})),
           quote: quote.content,
           author: quote.author === "assistant" ? "安安" : "圆圆",
           ...(quote.note?.trim() ? { thought: quote.note.trim() } : {}),
@@ -461,7 +464,7 @@ export function registerReadingTools(
             title: bundle.session.title,
             position: {
               ...bundle.session.userCurrentPosition,
-              index
+              index, label: `第 ${index} 页`
             },
             ...(currentText ? { currentText } : {}),
             savedThoughts

@@ -119,6 +119,10 @@ export interface ReadingSession {
   completedAt?: string;
 }
 
+export interface AnnotationReply {
+  id: string; quoteId: string; author: "user" | "assistant"; content: string; createdAt: string; operationId: string; replyToId?: string;
+}
+
 export interface Quote {
   id: string;
   sessionId: string;
@@ -126,6 +130,7 @@ export interface Quote {
   position: ReadingPosition;
   note?: string;
   author?: "user" | "assistant";
+  replies?: AnnotationReply[];
   clearThought?: string;
   operationId?: string;
   createdAt: string;
