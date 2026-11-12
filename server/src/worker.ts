@@ -72,6 +72,7 @@ export default {
             ? { sourceEndpointBase: `${url.origin}/source/${env.MCP_PATH_TOKEN}` }
             : {}),
           workerOrigin,
+          gameDatabase: env.DB,
           lightweightSchemas: true
         }
       );

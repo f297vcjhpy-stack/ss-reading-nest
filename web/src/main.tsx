@@ -1,3 +1,4 @@
+import { Gomoku } from "./Gomoku.js";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { READING_NEST_RESOURCE_VERSION } from "@ss/shared";
@@ -14,7 +15,7 @@ document.documentElement.dataset.hostEmbedding =
 if (rootElement) {
   createRoot(rootElement).render(
     <StrictMode>
-      <Boot />
+      {("__AN_GOMOKU__" in window) ? <Gomoku /> : <Boot />}
     </StrictMode>
   );
   queueMicrotask(initializeReadingHostBridge);
