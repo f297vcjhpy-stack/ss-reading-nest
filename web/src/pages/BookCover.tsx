@@ -64,7 +64,7 @@ export function BookCover(props: {
   onRead: (item: BookshelfItem) => void;
   onReimport: (item: BookshelfItem) => void;
   onManage: (item: BookshelfItem) => void;
-  onJump: (item: BookshelfItem, position: ReadingPosition) => void;
+  onJump: (item: BookshelfItem, position: ReadingPosition, quoteId?: string) => void;
   onDeleteEntry?: (
     item: BookshelfItem,
     target: ArchiveDeleteTarget
@@ -238,10 +238,11 @@ export function BookCover(props: {
                     type="button"
                     className="archive-entry-main"
                     aria-expanded={expanded}
-                    onClick={() => setExpandedId((current) => (current === entry.id ? null : entry.id))}
-                    onDoubleClick={() => {
-                      if (entry.position) props.onJump(props.item, entry.position);
+                    onClick={() => {
+                      setExpandedId((current) => (current === entry.id ? null : entry.id));
+                      if (entry.position) props.onJump(props.item, entry.position, entry.deleteTarget?.source === "quote" ? entry.id : undefined);
                     }}
+
                   >
                     <span>{entry.position?.label ?? ARCHIVE_COPY[entry.kind].label}</span>
                     <strong>{entry.title}</strong>

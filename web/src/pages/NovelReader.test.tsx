@@ -168,6 +168,21 @@ describe("NovelReader", () => {
     expect(props.onSharePage).not.toHaveBeenCalled();
   });
 
+  it("locates a quote from another page through the full-book annotation list", async () => {
+    const props = makeProps();
+    props.chunks = ["第一页正文。", "目标原句。"];
+    props.savedQuotes = [{id:"history-anchor", sessionId:"novel-session", content:"目标原句。",note:"另一页的批注",author:"assistant",position:{kind:"paragraph",index:2,label:"第 2 页"},createdAt:"2026-06-22T00:00:00.000Z"}];
+    const view = render(<NovelReader {...props} />);
+    fireEvent.click(screen.getByRole("button", {name:/打开本页想法/}));
+    fireEvent.click(screen.getByRole("button", {name:"查看全书批注"}));
+    expect(screen.getByText("另一页的批注")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", {name:"定位原文"}));
+    expect(props.onPosition).toHaveBeenCalledWith(2);
+    view.rerender(<NovelReader {...props} session={{...props.session,userCurrentPosition:{kind:"paragraph",index:2,label:"第 2 页",total:2}}} />);
+    await waitFor(() => expect(document.querySelector("mark[data-quote-content]" )).toHaveFocus());
+    expect(document.querySelector("mark[data-quote-content]")).toHaveClass("quote-located");
+  });
+
   it("labels assistant annotations separately in the page thoughts", () => {
     const props = makeProps();
     props.savedQuotes = [{id:"assistant-note",sessionId:"novel-session",content:"第二句话。",note:"安安自己的感想",author:"assistant",position:{kind:"paragraph",index:1,label:"第 1 段"},createdAt:"2026-06-22T00:00:00.000Z"}];

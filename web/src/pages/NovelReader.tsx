@@ -23,6 +23,7 @@ export function NovelReader(props: {
   session: ReadingSession;
   chunks: string[];
   savedQuotes: Quote[];
+  focusQuoteId?: string;
   onPosition: (index: number) => void;
   onSharePage: (currentText: string) => Promise<void> | void;
   onAskSelection: (selectedText: string, question: string) => Promise<void> | void;
@@ -88,6 +89,31 @@ export function NovelReader(props: {
   const next = () => props.onPosition(Math.min(props.chunks.length, index + 2));
   const swipe = useHorizontalPaging(previous, next);
   const scrollRef = useRef<HTMLElement>(null);
+  const [showAllThoughts, setShowAllThoughts] = useState(false);
+  const [locatingQuote, setLocatingQuote] = useState<string | undefined>();
+  const targetQuoteId = locatingQuote ?? props.focusQuoteId;
+  useEffect(() => {
+    if (!targetQuoteId) return;
+    const quote = props.savedQuotes.find(item => item.id === targetQuoteId);
+    if (!quote || quote.position.index !== index + 1) return;
+    const mark = Array.from(scrollRef.current?.querySelectorAll<HTMLElement>("mark[data-quote-content]") ?? [])
+      .find(el => el.dataset.quoteContent === normalizeQuote(quote.content));
+    if (!mark) return;
+    const locateTimer = window.setTimeout(() => {
+      mark.scrollIntoView?.({block:"center", behavior:"smooth"});
+      mark.focus({preventScroll:true});
+      mark.classList.add("quote-located");
+    }, 0);
+    const timer = window.setTimeout(() => mark.classList.remove("quote-located"), 2500);
+    return () => {window.clearTimeout(timer);window.clearTimeout(locateTimer);};
+  }, [targetQuoteId, index, current, props.savedQuotes]);
+  function locateQuote(quote: Quote) {
+    setThoughtsCardOpen(false);
+    setActiveQuote(null);
+    setLocatingQuote(quote.id);
+    props.onPosition(quote.position.index);
+  }
+
   const articleRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -333,7 +359,7 @@ export function NovelReader(props: {
           </div>
           </section>
 
-          {currentThoughts.length > 0 ? (
+          {props.savedQuotes.some(quote => quote.note) ? (
             <button
               type="button"
               className="page-thoughts-pin"
@@ -435,10 +461,13 @@ export function NovelReader(props: {
                   </button>
                 </header>
                 <div className="thoughts-card-scroll">
-                  {currentThoughts.map((quote, thoughtIndex) => (
+                  <button type="button" onClick={() => setShowAllThoughts(value => !value)}>
+                    {showAllThoughts ? "只看本页" : "查看全书批注"}
+                  </button>
+                  {(showAllThoughts ? props.savedQuotes.filter(quote => quote.note) : currentThoughts).map((quote, thoughtIndex) => (
                     <article key={quote.id} className="thoughts-card-entry">
                       <p className="thoughts-card-kicker">
-                        {String(thoughtIndex + 1).padStart(2, "0")} · 原文
+                        {String(thoughtIndex + 1).padStart(2, "0")} · 第 {quote.position.index} 页 · 原文
                       </p>
                       <blockquote>“{normalizeQuote(quote.content)}”</blockquote>
                       <div className="thoughts-card-section">
@@ -456,6 +485,7 @@ export function NovelReader(props: {
                       >
                         打开这句
                       </button>
+                      <button type="button" className="thoughts-card-open" onClick={() => locateQuote(quote)}>定位原文</button>
                     </article>
                   ))}
                 </div>
@@ -712,6 +742,7 @@ function highlightLine(line: string, quotes: Quote[], onOpenQuote: (quote: Quote
       <mark
         key={`${index}-${part}`}
         className="quote-highlight"
+        data-quote-content={normalizeQuote(quote.content)}
         role="button"
         tabIndex={0}
         title={quote.note ?? "已保存的划线"}

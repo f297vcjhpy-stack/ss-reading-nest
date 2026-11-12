@@ -81,7 +81,7 @@ describe("BookCover", () => {
     expect(document.querySelector(".cover-stage")).toHaveClass("cover-title-long");
   });
 
-  it("expands an entry on one click and jumps on double click", () => {
+  it("jumps from an archive entry on a single click with the quote anchor", () => {
     const onJump = vi.fn();
     renderCover({ onJump });
 
@@ -90,8 +90,7 @@ describe("BookCover", () => {
     fireEvent.click(entry);
     expect(screen.getByText("为什么这句话让我停下来？")).toBeInTheDocument();
 
-    fireEvent.doubleClick(entry);
-    expect(onJump).toHaveBeenCalledWith(item, item.quotes[0]!.position);
+    expect(onJump).toHaveBeenCalledWith(item, item.quotes[0]!.position, item.quotes[0]!.id);
   });
 
   it("requires confirmation before deleting a book archive entry", async () => {

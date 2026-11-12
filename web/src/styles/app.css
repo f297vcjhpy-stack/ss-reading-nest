@@ -1969,3 +1969,5 @@ html[data-display-mode="fullscreen"] .app {
   }
   button:not(:disabled):active { transform: none; }
 }
+
+.quote-highlight.quote-located { outline: 3px solid #b37942; outline-offset: 3px; background: #f4d791; color: #332616; }

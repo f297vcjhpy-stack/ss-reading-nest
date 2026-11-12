@@ -178,6 +178,7 @@ export function App() {
   const [readingRecords, setReadingRecords] = useState<ReadingRecord[]>(() =>
     sortReadingRecords(openOutput?.readingRecords ?? [])
   );
+  const [focusQuoteId, setFocusQuoteId] = useState<string | undefined>();
   const [sessionBundle, setSessionBundle] = useState<SessionBundle | null>(null);
   const [selectedBook, setSelectedBook] = useState<BookshelfItem | null>(null);
   const [readerReturnScreen, setReaderReturnScreen] = useState<"home" | "cover">("home");
@@ -1957,7 +1958,8 @@ export function App() {
           }}
           onReimport={prepareReimport}
           onManage={(item) => void openBookManagement(item)}
-          onJump={(item, targetPosition) => {
+          onJump={(item, targetPosition, quoteId) => {
+            setFocusQuoteId(quoteId);
             setReaderCollapsed(false);
             setReaderReturnScreen("cover");
             void continueReading(item, targetPosition);
@@ -2043,6 +2045,7 @@ export function App() {
           session={sessionBundle.session}
           chunks={chunks}
           savedQuotes={sessionBundle.quotes}
+          focusQuoteId={focusQuoteId}
           onPosition={changePosition}
           onSharePage={shareNovelPage}
           onAskSelection={askAboutNovelSelection}
