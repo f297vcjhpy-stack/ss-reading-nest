@@ -34,11 +34,13 @@ import { sanitizeBookshelfBundle } from "../privacy/sanitize-bookshelf.js";
 import { ReadingService } from "../services/reading-service.js";
 import type { CloudSourceService } from "../services/cloud-source-service.js";
 import { toolResult } from "./tool-result.js";
+import { registerAssistantAnnotations } from "./assistant-annotations.js";
 
 // ChatGPT connections cache component URIs. Keep old URI aliases registered so a
 // previous connection can still fetch its template after a later app release.
 export const READING_NEST_URI = READING_NEST_RESOURCE_URI;
 export const READING_NEST_LEGACY_URIS = [
+  "ui://ss-reading-nest/app-v83-an-personalized.html",
   "ui://ss-reading-nest/app-v78-context-fallback-remount.html",
   "ui://ss-reading-nest/app-v76-ios-remount.html",
   "ui://ss-reading-nest/app-v77-explicit-thought-delivery.html",
@@ -380,6 +382,8 @@ export function registerReadingTools(
     };
   };
 
+  registerAssistantAnnotations(server, service, cloudSourceService, () => loadNovelBookshelf(false));
+
   registerAppTool(server, "open_reading_nest", toolConfigs.open_reading_nest, async () => {
     const bookshelf = await loadNovelBookshelf(false);
     return {
@@ -425,6 +429,7 @@ export function registerReadingTools(
         )
         .map((quote) => ({
           quote: quote.content,
+          author: quote.author === "assistant" ? "安安" : "圆圆",
           ...(quote.note?.trim() ? { thought: quote.note.trim() } : {}),
           ...(quote.clearThought?.trim()
             ? { clearThought: quote.clearThought.trim() }

@@ -168,6 +168,15 @@ describe("NovelReader", () => {
     expect(props.onSharePage).not.toHaveBeenCalled();
   });
 
+  it("labels assistant annotations separately in the page thoughts", () => {
+    const props = makeProps();
+    props.savedQuotes = [{id:"assistant-note",sessionId:"novel-session",content:"第二句话。",note:"安安自己的感想",author:"assistant",position:{kind:"paragraph",index:1,label:"第 1 段"},createdAt:"2026-06-22T00:00:00.000Z"}];
+    render(<NovelReader {...props} />);
+    fireEvent.click(screen.getByRole("button", {name:/本页想法/}));
+    expect(screen.getByText("安安的批注")).toBeInTheDocument();
+    expect(screen.getByText("安安自己的感想")).toBeInTheDocument();
+  });
+
   it("shows saved highlights and lets the thought be edited", () => {
     const props = makeProps();
     props.savedQuotes = [

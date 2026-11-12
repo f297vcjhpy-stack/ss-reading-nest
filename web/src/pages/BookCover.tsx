@@ -312,7 +312,7 @@ export function buildBookArchive(item: BookshelfItem): Record<ArchiveKind, Archi
         deleteTarget: { source: "quote", recordId: quote.id },
         kind: "clarity",
         title: stripPrefix(normalizedContent, /^安安(?:短评|清思)[：:]\s*/),
-        body: note,
+        body: quote.author === "assistant" ? `安安的批注：${note}` : note,
         position: quote.position
       });
     } else if (/^纪要[：:]/.test(normalizedContent)) {
@@ -338,7 +338,7 @@ export function buildBookArchive(item: BookshelfItem): Record<ArchiveKind, Archi
         deleteTarget: { source: "quote", recordId: quote.id },
         kind: "thought",
         title: normalizedContent,
-        body: note,
+        body: quote.author === "assistant" ? `安安的批注：${note}` : note,
         position: quote.position
       });
     }

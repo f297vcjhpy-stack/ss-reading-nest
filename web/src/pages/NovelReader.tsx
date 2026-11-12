@@ -135,7 +135,7 @@ export function NovelReader(props: {
     ) {
       return;
     }
-    const existing = currentQuotes.find((quote) => normalizeQuote(quote.content) === text);
+    const existing = currentQuotes.find((quote) => quote.author !== "assistant" && normalizeQuote(quote.content) === text);
     setSelected(text);
     setSelectionMode(null);
     setDraft(existing?.note ?? "");
@@ -442,7 +442,7 @@ export function NovelReader(props: {
                       </p>
                       <blockquote>“{normalizeQuote(quote.content)}”</blockquote>
                       <div className="thoughts-card-section">
-                        <strong>意绪</strong>
+                        <strong>{quote.author === "assistant" ? "安安的批注" : "圆圆的意绪"}</strong>
                         <p>{quote.note}</p>
                       </div>
                       <div className="thoughts-card-section thoughts-card-clear">
@@ -489,7 +489,7 @@ export function NovelReader(props: {
                 </blockquote>
                 <section className="quote-detail-section">
                   <div className="quote-detail-section-heading">
-                    <strong>意绪</strong>
+                    <strong>{activeQuote.author === "assistant" ? "安安的批注" : "圆圆的意绪"}</strong>
                     <button type="button" onClick={editActiveThought}>修改意绪</button>
                   </div>
                   <p>{activeQuote.note || "这里还没有写下第一反应。"}</p>

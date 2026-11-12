@@ -115,6 +115,7 @@ type OpenOutput = {
   recentSessions?: Array<SessionBundle & { cacheState?: string }>;
   readingRecords?: ReadingRecord[];
   sourceEndpointBase?: string;
+  quote?: Quote;
 };
 
 type ActiveReadingRecordDraft = {
@@ -221,6 +222,14 @@ export function App() {
     () =>
       subscribeToolOutput<OpenOutput>((output) => {
         setOpenOutput((current) => mergeOpenOutput(current, output, "partial"));
+        const quote = output.quote;
+        if (quote?.author === "assistant") {
+          setSessionBundle((current) => {
+            if (!current || current.session.id !== quote.sessionId ||
+                current.quotes.some((item) => item.id === quote.id)) return current;
+            return {...current, quotes:[...current.quotes, quote]};
+          });
+        }
       }),
     []
   );

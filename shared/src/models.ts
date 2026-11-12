@@ -124,6 +124,7 @@ export interface Quote {
   content: string;
   position: ReadingPosition;
   note?: string;
+  author?: "user" | "assistant";
   clearThought?: string;
   operationId?: string;
   createdAt: string;

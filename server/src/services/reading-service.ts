@@ -230,11 +230,17 @@ export class ReadingService {
     content: string;
     position: ReadingPosition;
     note?: string;
+    author?: "user" | "assistant";
     clearThought?: string;
     operationId?: string;
   }): Promise<Quote> {
     return this.repository.mutate((database) => {
-      this.requireSession(database.sessions, input.sessionId);
+      const session = this.requireSession(database.sessions, input.sessionId);
+      if (input.author === "assistant" &&
+          (session.userCurrentPosition.kind !== input.position.kind ||
+           session.userCurrentPosition.index !== input.position.index)) {
+        throw new AppError("INVALID_OPERATION", "页码已经变化，请重新读取当前页后再批注。");
+      }
       const existing = input.operationId
         ? database.quotes.find((item) => item.operationId === input.operationId)
         : undefined;
@@ -245,6 +251,7 @@ export class ReadingService {
         content: input.content,
         position: input.position,
         ...(input.note ? { note: input.note } : {}),
+        ...(input.author === "assistant" ? { author: "assistant" as const } : {}),
         ...(input.clearThought ? { clearThought: input.clearThought } : {}),
         ...(input.operationId ? { operationId: input.operationId } : {}),
         createdAt: this.deps.now().toISOString()
