@@ -1,3 +1,4 @@
+import { registerTimeTools } from "./time-tools.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { READING_NEST_APP_VERSION } from "@ss/shared";
 import type { ReadingRepository } from "../repositories/reading-repository.js";
@@ -19,6 +20,7 @@ export function createMcpServerFromRepository(
     name: "圆圆和安安的小书房",
     version: READING_NEST_APP_VERSION
   });
+  registerTimeTools(server);
   const service = new ReadingService(repository);
   registerReadingResource(server, widgetHtml, options.workerOrigin, async () => ({
     ...(options.sourceEndpointBase ? { sourceEndpointBase: options.sourceEndpointBase } : {})
